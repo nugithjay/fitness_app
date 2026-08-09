@@ -62,3 +62,13 @@ export const DEFAULT_PROFILE = {
   goalCarbs: 360,
   goalFat: 80,
 };
+
+export const MEALS = ["Breakfast", "Lunch", "Dinner", "Snacks"];
+export function guessMealFromTime(hhmm) {
+  const hour = parseInt(String(hhmm).split(":")[0], 10);
+  if (isNaN(hour)) return "Snacks";
+  if (hour < 11) return "Breakfast";
+  if (hour < 15) return "Lunch";
+  if (hour < 18) return "Snacks";
+  return "Dinner";
+}

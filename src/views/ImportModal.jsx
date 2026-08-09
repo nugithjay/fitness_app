@@ -5,6 +5,7 @@ import { Card, SectionLabel, GhostButton, PrimaryButton, MapField, IconButton } 
 import { normHeader, guessColumn, parseFlexibleDate, parseSpreadsheetFile } from "../lib/importHelpers";
 
 const MEAL_TIME_GUESS = { breakfast: "08:00", lunch: "12:30", dinner: "19:00", snack: "15:30", snacks: "15:30" };
+const MEAL_LABEL = { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", snack: "Snacks", snacks: "Snacks" };
 
 export function ImportModal({ onClose, onImportFood, onImportWeight }) {
   const [stage, setStage] = useState("pick");
@@ -75,6 +76,7 @@ export function ImportModal({ onClose, onImportFood, onImportWeight }) {
         byDate[date].push({
           id: uid(),
           time: MEAL_TIME_GUESS[mealKey] || "12:00",
+          meal: MEAL_LABEL[mealKey] || "Snacks",
           name: row[mapping.name] || "Imported food",
           brand: "",
           calories: round0(cal),

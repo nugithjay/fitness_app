@@ -20,6 +20,7 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState("today");
   const [selectedDate, setSelectedDate] = useState(todayISO());
+  const [foodTabMeal, setFoodTabMeal] = useState(null);
   const [profile, setProfile] = useState(DEFAULT_PROFILE);
   const [foodLog, setFoodLog] = useState({});
   const [weightLog, setWeightLog] = useState([]);
@@ -30,6 +31,11 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [importWorkoutsOpen, setImportWorkoutsOpen] = useState(false);
+
+  const changeTab = (tab) => {
+    if (tab === "food" && activeTab !== "food") setFoodTabMeal(null);
+    setActiveTab(tab);
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -166,10 +172,10 @@ export default function App() {
             profile={profile}
             onDeleteFood={deleteFoodEntry}
             onLogWeight={logWeight}
-            goToFood={() => setActiveTab("food")}
+            goToFood={(meal) => { setFoodTabMeal(meal || null); setActiveTab("food"); }}
           />
         )}
-        {activeTab === "food" && <FoodView date={selectedDate} foodLog={foodLog} onAddEntry={addFoodEntry} />}
+        {activeTab === "food" && <FoodView date={selectedDate} foodLog={foodLog} initialMeal={foodTabMeal} onAddEntry={addFoodEntry} />}
         {activeTab === "workouts" && (
           <WorkoutsView
             date={selectedDate} workoutLog={workoutLog} templates={templates}
@@ -187,7 +193,7 @@ export default function App() {
         )}
       </div>
 
-      <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
+      <BottomNav activeTab={activeTab} setActiveTab={changeTab} />
 
       {settingsOpen && (
         <SettingsModal

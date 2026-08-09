@@ -1,24 +1,53 @@
 import React, { useState } from "react";
 import { Scale, Pencil, Check, Trash2, Plus } from "lucide-react";
-import { THEME, round0, round1, formatDateLabel, toKg, displayWeight } from "../lib/core";
-import { Card, SectionLabel, GhostButton, FieldInput, IconButton, EmptyState } from "../components/ui";
+import { THEME, MEALS, round0, round1, formatDateLabel, toKg, displayWeight, guessMealFromTime } from "../lib/core";
+import { Card, SectionLabel, GhostButton, FieldInput, IconButton } from "../components/ui";
 import { CalorieRing, MacroBar } from "../components/Metrics";
 
 function FoodEntryRow({ entry, onDelete }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${THEME.border}` }}>
+    <div style={{ display: "flex", alignItems: "center", padding: "9px 0", borderBottom: `1px solid ${THEME.border}` }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13.5, color: THEME.text, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           {entry.name}
         </div>
         <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 2, fontFamily: THEME.mono }}>
-          {entry.time} · P{round1(entry.protein)} C{round1(entry.carbs)} F{round1(entry.fat)}
+          P{round1(entry.protein)} C{round1(entry.carbs)} F{round1(entry.fat)}
         </div>
       </div>
       <div style={{ fontFamily: THEME.mono, fontSize: 14, fontWeight: 700, color: THEME.text, marginRight: 6 }}>
         {round0(entry.calories)}
       </div>
       <IconButton icon={Trash2} color={THEME.textMuted} onClick={() => onDelete(entry.id)} title="Remove" />
+    </div>
+  );
+}
+
+function MealSection({ meal, entries, onDeleteFood, goToFood }) {
+  const subtotal = entries.reduce((s, e) => s + Number(e.calories || 0), 0);
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+          <span style={{ fontSize: 13.5, fontWeight: 700, color: THEME.text }}>{meal}</span>
+          {entries.length > 0 && (
+            <span style={{ fontSize: 11.5, color: THEME.textMuted, fontFamily: THEME.mono }}>{round0(subtotal)} kcal</span>
+          )}
+        </div>
+        <button
+          onClick={() => goToFood(meal)}
+          style={{ display: "flex", alignItems: "center", gap: 3, background: "none", border: "none", color: THEME.accent, fontSize: 12, fontWeight: 700, cursor: "pointer", padding: 4 }}
+        >
+          <Plus size={13} /> Add
+        </button>
+      </div>
+      <Card style={{ padding: entries.length ? "0 16px" : "10px 16px" }}>
+        {entries.length === 0 ? (
+          <div style={{ fontSize: 12, color: THEME.textMuted, padding: "6px 0" }}>Nothing logged yet</div>
+        ) : (
+          entries.map((e) => <FoodEntryRow key={e.id} entry={e} onDelete={onDeleteFood} />)
+        )}
+      </Card>
     </div>
   );
 }
@@ -31,6 +60,13 @@ export function TodayView({ date, foodLog, weightLog, profile, onDeleteFood, onL
     carbs: acc.carbs + Number(e.carbs || 0),
     fat: acc.fat + Number(e.fat || 0),
   }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+
+  const byMeal = { Breakfast: [], Lunch: [], Dinner: [], Snacks: [] };
+  entries.forEach((e) => {
+    const meal = MEALS.includes(e.meal) ? e.meal : guessMealFromTime(e.time);
+    byMeal[meal].push(e);
+  });
+  Object.keys(byMeal).forEach((m) => byMeal[m].sort((a, b) => (a.time < b.time ? -1 : 1)));
 
   const todayWeightEntry = weightLog.find((w) => w.date === date);
   const latestWeight = [...weightLog].sort((a, b) => (a.date < b.date ? 1 : -1))[0];
@@ -93,20 +129,10 @@ export function TodayView({ date, foodLog, weightLog, profile, onDeleteFood, onL
       </Card>
 
       <div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <SectionLabel>Meals logged</SectionLabel>
-          <GhostButton icon={Plus} onClick={goToFood}>Add food</GhostButton>
-        </div>
-        <Card style={{ padding: entries.length ? "0 16px" : 16 }}>
-          {entries.length === 0 ? (
-            <EmptyState text="Nothing logged for this day yet. Scan a barcode, search, or add a meal manually from the Food tab." />
-          ) : (
-            entries
-              .slice()
-              .sort((a, b) => (a.time < b.time ? -1 : 1))
-              .map((e) => <FoodEntryRow key={e.id} entry={e} onDelete={(id) => onDeleteFood(date, id)} />)
-          )}
-        </Card>
+        <SectionLabel>Meals</SectionLabel>
+        {MEALS.map((meal) => (
+          <MealSection key={meal} meal={meal} entries={byMeal[meal]} onDeleteFood={(id) => onDeleteFood(date, id)} goToFood={goToFood} />
+        ))}
       </div>
     </div>
   );
