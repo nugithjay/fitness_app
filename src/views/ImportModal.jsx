@@ -1,45 +1,10 @@
 import React, { useState } from "react";
-import Papa from "papaparse";
-import * as XLSX from "xlsx";
 import { X, FileUp, Upload, Check, ArrowLeft } from "lucide-react";
 import { THEME, uid, round0, round1, lbToKg } from "../lib/core";
 import { Card, SectionLabel, GhostButton, PrimaryButton, MapField, IconButton } from "../components/ui";
+import { normHeader, guessColumn, parseFlexibleDate, parseSpreadsheetFile } from "../lib/importHelpers";
 
-const normHeader = (h) => String(h || "").toLowerCase().replace(/[^a-z]/g, "");
-function guessColumn(headers, keywords, excludeKeywords = []) {
-  for (const h of headers) {
-    const n = normHeader(h);
-    if (keywords.some((k) => n.includes(k)) && !excludeKeywords.some((k) => n.includes(k))) return h;
-  }
-  return "";
-}
-function parseFlexibleDate(str) {
-  if (!str) return null;
-  const d = new Date(String(str).trim());
-  if (isNaN(d.getTime())) return null;
-  return d.toISOString().slice(0, 10);
-}
 const MEAL_TIME_GUESS = { breakfast: "08:00", lunch: "12:30", dinner: "19:00", snack: "15:30", snacks: "15:30" };
-
-async function parseSpreadsheetFile(file) {
-  const ext = file.name.split(".").pop().toLowerCase();
-  if (ext === "xlsx" || ext === "xls") {
-    const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, { type: "array" });
-    return {
-      sheetNames: wb.SheetNames,
-      getSheet: (name) => {
-        const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { defval: "" });
-        const headers = rows.length ? Object.keys(rows[0]) : [];
-        return { headers, rows };
-      },
-    };
-  }
-  const text = await file.text();
-  const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
-  const headers = parsed.meta.fields || [];
-  return { sheetNames: null, getSheet: () => ({ headers, rows: parsed.data }) };
-}
 
 export function ImportModal({ onClose, onImportFood, onImportWeight }) {
   const [stage, setStage] = useState("pick");

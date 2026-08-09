@@ -1,10 +1,10 @@
 import React, { useState } from "react";
-import { X, Check, Upload, LogOut } from "lucide-react";
+import { X, Check, Upload, LogOut, Dumbbell } from "lucide-react";
 import { THEME, round0 } from "../lib/core";
 import { Card, SectionLabel, GhostButton, PrimaryButton, FieldInput, IconButton } from "../components/ui";
 import { supabase } from "../supabaseClient";
 
-export function SettingsModal({ profile, onSave, onClose, onOpenImport }) {
+export function SettingsModal({ profile, onSave, onClose, onOpenImport, onOpenImportWorkouts }) {
   const [local, setLocal] = useState(profile);
   const computedCalories = round0(Number(local.goalProtein) * 4 + Number(local.goalCarbs) * 4 + Number(local.goalFat) * 9);
 
@@ -50,7 +50,8 @@ export function SettingsModal({ profile, onSave, onClose, onOpenImport }) {
 
         <div style={{ marginTop: 24, paddingTop: 18, borderTop: `1px solid ${THEME.border}` }}>
           <SectionLabel>Bring in old data</SectionLabel>
-          <GhostButton icon={Upload} onClick={onOpenImport} style={{ width: "100%" }}>Import from MyFitnessPal</GhostButton>
+          <GhostButton icon={Upload} onClick={onOpenImport} style={{ width: "100%", marginBottom: 8 }}>Import from MyFitnessPal</GhostButton>
+          <GhostButton icon={Dumbbell} onClick={onOpenImportWorkouts} style={{ width: "100%" }}>Import from Strong</GhostButton>
         </div>
 
         <div style={{ marginTop: 18 }}>

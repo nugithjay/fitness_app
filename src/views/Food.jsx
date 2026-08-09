@@ -1,7 +1,7 @@
-import React, { useState } from "react";
-import { Hash, Search, Pencil, Camera, X, Plus, Loader2 } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { Hash, Search, Pencil, Camera, X, Plus, Loader2, Star } from "lucide-react";
 import { THEME, uid, round0, round1, currentTimeHHMM } from "../lib/core";
-import { Card, GhostButton, FieldInput, IconButton } from "../components/ui";
+import { Card, GhostButton, FieldInput, IconButton, EmptyState } from "../components/ui";
 import { lookupBarcode, searchFoods } from "../lib/openFoodFacts";
 import { useBarcodeScanner } from "../hooks/useBarcodeScanner";
 
@@ -66,7 +66,77 @@ function ProductPreview({ product, onAdd, onCancel }) {
   );
 }
 
-export function FoodView({ date, onAddEntry }) {
+function MyFoodsPanel({ foodLog, date, onAddEntry }) {
+  const [query, setQuery] = useState("");
+
+  const distinctFoods = useMemo(() => {
+    const map = new Map();
+    Object.values(foodLog).flat().forEach((e) => {
+      const key = e.name.trim().toLowerCase();
+      const existing = map.get(key);
+      if (!existing || (e.date || "") >= (existing.date || "")) {
+        map.set(key, e);
+      }
+      map.set(key, { ...(map.get(key)), count: (existing?.count || 0) + 1 });
+    });
+    return Array.from(map.values()).sort((a, b) => (b.count || 0) - (a.count || 0));
+  }, [foodLog]);
+
+  const filtered = query.trim()
+    ? distinctFoods.filter((f) => f.name.toLowerCase().includes(query.trim().toLowerCase()))
+    : distinctFoods;
+
+  const addAgain = (food) => {
+    onAddEntry(date, {
+      id: uid(),
+      time: currentTimeHHMM(),
+      name: food.name,
+      brand: food.brand || "",
+      calories: food.calories,
+      protein: food.protein,
+      carbs: food.carbs,
+      fat: food.fat,
+      source: "myfoods",
+    });
+  };
+
+  return (
+    <div>
+      <Card>
+        <FieldInput value={query} onChange={setQuery} placeholder="Search your food history" />
+      </Card>
+      <Card style={{ marginTop: 12, padding: filtered.length ? "4px 16px" : 16 }}>
+        {distinctFoods.length === 0 ? (
+          <EmptyState text="Nothing here yet — once you've logged a few meals (or imported your MFP history), they'll show up here for one-tap re-adding." />
+        ) : filtered.length === 0 ? (
+          <EmptyState text="No matches. Try a different search." />
+        ) : (
+          filtered.slice(0, 60).map((f, i) => (
+            <button
+              key={f.name + i}
+              onClick={() => addAgain(f)}
+              style={{
+                display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%",
+                background: "transparent", border: "none", borderBottom: i < Math.min(filtered.length, 60) - 1 ? `1px solid ${THEME.border}` : "none",
+                padding: "10px 0", cursor: "pointer", textAlign: "left",
+              }}
+            >
+              <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                {f.count > 1 && <span style={{ fontSize: 10, color: THEME.textMuted, fontFamily: THEME.mono, flexShrink: 0 }}>{f.count}×</span>}
+                <span style={{ fontSize: 13, color: THEME.text, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{f.name}</span>
+              </div>
+              <div style={{ fontFamily: THEME.mono, fontSize: 12, color: THEME.textMuted, flexShrink: 0, marginLeft: 8 }}>
+                {round0(f.calories)} kcal
+              </div>
+            </button>
+          ))
+        )}
+      </Card>
+    </div>
+  );
+}
+
+export function FoodView({ date, foodLog, onAddEntry }) {
   const [mode, setMode] = useState("barcode");
 
   const [barcodeInput, setBarcodeInput] = useState("");
@@ -153,11 +223,14 @@ export function FoodView({ date, onAddEntry }) {
 
   return (
     <div style={{ padding: 16 }}>
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        <GhostButton active={mode === "barcode"} onClick={() => { setMode("barcode"); setProduct(null); setLookupError(""); }} icon={Hash} style={{ flex: 1 }}>Barcode</GhostButton>
-        <GhostButton active={mode === "search"} onClick={() => { setMode("search"); setProduct(null); }} icon={Search} style={{ flex: 1 }}>Search</GhostButton>
-        <GhostButton active={mode === "manual"} onClick={() => { setMode("manual"); setProduct(null); }} icon={Pencil} style={{ flex: 1 }}>Manual</GhostButton>
+      <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+        <GhostButton active={mode === "myfoods"} onClick={() => { setMode("myfoods"); setProduct(null); }} icon={Star} style={{ flex: 1, padding: "9px 6px" }}>My Foods</GhostButton>
+        <GhostButton active={mode === "barcode"} onClick={() => { setMode("barcode"); setProduct(null); setLookupError(""); }} icon={Hash} style={{ flex: 1, padding: "9px 6px" }}>Barcode</GhostButton>
+        <GhostButton active={mode === "search"} onClick={() => { setMode("search"); setProduct(null); }} icon={Search} style={{ flex: 1, padding: "9px 6px" }}>Search</GhostButton>
+        <GhostButton active={mode === "manual"} onClick={() => { setMode("manual"); setProduct(null); }} icon={Pencil} style={{ flex: 1, padding: "9px 6px" }}>Manual</GhostButton>
       </div>
+
+      {mode === "myfoods" && <MyFoodsPanel foodLog={foodLog} date={date} onAddEntry={onAddEntry} />}
 
       {mode === "barcode" && (
         <div>

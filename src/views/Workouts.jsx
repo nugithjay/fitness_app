@@ -1,7 +1,10 @@
 import React, { useState, useMemo } from "react";
-import { Dumbbell, Flame, Plus, Trash2, X, Check } from "lucide-react";
-import { THEME, uid, round0, round1, formatDateLabel, toKg, displayWeight } from "../lib/core";
+import { Dumbbell, Flame, Plus, Trash2, X, Check, Play, ChevronDown, ChevronUp } from "lucide-react";
+import { THEME, uid, round0, round1, formatDateLabel, toKg, displayWeight, todayISO } from "../lib/core";
 import { Card, SectionLabel, GhostButton, PrimaryButton, FieldInput, IconButton, EmptyState } from "../components/ui";
+import { WorkoutSession } from "./WorkoutSession";
+
+/* ---- manual / backfill form (for logging a session after the fact) ---- */
 
 const blankExercise = () => ({ id: uid(), name: "", sets: [{ id: uid(), reps: "", weight: "" }] });
 const blankWorkout = (date) => ({
@@ -138,7 +141,28 @@ function WorkoutHistoryItem({ workout, onDelete, weightUnit }) {
   );
 }
 
-export function WorkoutsView({ date, workoutLog, onAdd, onDelete, weightUnit }) {
+function TemplateCard({ template, onStart, onDelete }) {
+  return (
+    <Card style={{ minWidth: 180, marginRight: 10, flexShrink: 0 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div style={{ fontSize: 13.5, fontWeight: 700, color: THEME.text, marginBottom: 4 }}>{template.name}</div>
+        <IconButton icon={Trash2} onClick={onDelete} />
+      </div>
+      <div style={{ fontSize: 11.5, color: THEME.textMuted, marginBottom: 12 }}>
+        {template.exercises.length} exercise{template.exercises.length !== 1 ? "s" : ""}
+      </div>
+      <GhostButton icon={Play} onClick={onStart} style={{ width: "100%" }}>Start</GhostButton>
+    </Card>
+  );
+}
+
+export function WorkoutsView({
+  date, workoutLog, templates, onAddWorkout, onDeleteWorkout, weightUnit,
+  activeSession, onStartSession, onUpdateSession, onFinishSession, onCancelSession,
+  onDeleteTemplate, exerciseLibrary,
+}) {
+  const [showManualForm, setShowManualForm] = useState(false);
+
   const grouped = useMemo(() => {
     const byDate = {};
     [...workoutLog].sort((a, b) => (a.date < b.date ? 1 : -1)).forEach((w) => {
@@ -149,22 +173,77 @@ export function WorkoutsView({ date, workoutLog, onAdd, onDelete, weightUnit }) 
   }, [workoutLog]);
   const dates = Object.keys(grouped);
 
+  if (activeSession) {
+    return (
+      <WorkoutSession
+        session={activeSession}
+        onChange={onUpdateSession}
+        onFinish={onFinishSession}
+        onCancel={onCancelSession}
+        weightUnit={weightUnit}
+        exerciseLibrary={exerciseLibrary}
+      />
+    );
+  }
+
+  const startBlank = () => onStartSession({ name: "", date: todayISO(), startedAt: Date.now(), exercises: [] });
+
+  const startFromTemplate = (template) => {
+    const libByName = new Map(exerciseLibrary.map((e) => [e.name.toLowerCase(), e]));
+    onStartSession({
+      name: template.name,
+      date: todayISO(),
+      startedAt: Date.now(),
+      exercises: template.exercises.map((te) => {
+        const lib = libByName.get(te.name.toLowerCase());
+        return {
+          id: uid(),
+          name: te.name,
+          sets: Array.from({ length: Math.max(1, te.setCount || 3) }, () => ({
+            id: uid(),
+            reps: lib ? lib.lastReps || "" : "",
+            weight: lib && lib.lastWeightKg ? displayWeight(lib.lastWeightKg, weightUnit) : "",
+            done: false,
+          })),
+        };
+      }),
+    });
+  };
+
   return (
     <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
       <div>
-        <SectionLabel>Log a workout</SectionLabel>
-        <WorkoutForm date={date} onSave={onAdd} weightUnit={weightUnit} />
+        <SectionLabel>Start a workout</SectionLabel>
+        {templates.length > 0 && (
+          <div style={{ display: "flex", overflowX: "auto", paddingBottom: 4, marginBottom: 10 }}>
+            {templates.map((t) => (
+              <TemplateCard key={t.id} template={t} onStart={() => startFromTemplate(t)} onDelete={() => onDeleteTemplate(t.id)} />
+            ))}
+          </div>
+        )}
+        <PrimaryButton icon={Play} onClick={startBlank}>Start blank workout</PrimaryButton>
       </div>
+
+      <div>
+        <button
+          onClick={() => setShowManualForm(!showManualForm)}
+          style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", color: THEME.textMuted, fontSize: 12, cursor: "pointer", padding: 0, marginBottom: showManualForm ? 10 : 0 }}
+        >
+          {showManualForm ? <ChevronUp size={14} /> : <ChevronDown size={14} />} Log a past workout manually
+        </button>
+        {showManualForm && <WorkoutForm date={date} onSave={onAddWorkout} weightUnit={weightUnit} />}
+      </div>
+
       <div>
         <SectionLabel>History</SectionLabel>
         {dates.length === 0 ? (
-          <Card><EmptyState text="No workouts yet. Log your first session above." /></Card>
+          <Card><EmptyState text="No workouts yet. Start one above." /></Card>
         ) : (
           dates.map((d) => (
             <div key={d} style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 12, color: THEME.textMuted, marginBottom: 4, fontWeight: 600 }}>{formatDateLabel(d)}</div>
               <Card style={{ padding: "0 16px" }}>
-                {grouped[d].map((w) => <WorkoutHistoryItem key={w.id} workout={w} onDelete={onDelete} weightUnit={weightUnit} />)}
+                {grouped[d].map((w) => <WorkoutHistoryItem key={w.id} workout={w} onDelete={onDeleteWorkout} weightUnit={weightUnit} />)}
               </Card>
             </div>
           ))
