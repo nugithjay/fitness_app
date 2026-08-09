@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Camera, X, Plus, Loader2, Search, Pencil, ChevronDown, ChevronUp } from "lucide-react";
+import { Camera, X, Plus, Loader2, Search, Pencil, ChevronDown, ChevronUp, ChevronLeft } from "lucide-react";
 import { THEME, MEALS, uid, round0, round1, currentTimeHHMM, guessMealFromTime } from "../lib/core";
 import { Card, GhostButton, FieldInput, IconButton } from "../components/ui";
 import { lookupBarcode, searchFoods } from "../lib/openFoodFacts";
@@ -84,7 +84,7 @@ function ResultRow({ name, brand, kcalLabel, tag, onClick }) {
   );
 }
 
-export function FoodView({ date, foodLog, initialMeal, onAddEntry }) {
+export function FoodView({ date, foodLog, initialMeal, onAddEntry, onBack }) {
   const [meal, setMeal] = useState(initialMeal || guessMealFromTime(currentTimeHHMM()));
   const [query, setQuery] = useState("");
   const [product, setProduct] = useState(null);
@@ -197,6 +197,11 @@ export function FoodView({ date, foodLog, initialMeal, onAddEntry }) {
 
   return (
     <div style={{ padding: 16 }}>
+      {onBack && (
+        <button onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", color: THEME.textMuted, fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "0 0 12px" }}>
+          <ChevronLeft size={16} /> Back to diary
+        </button>
+      )}
       <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
         {MEALS.map((m) => (
           <GhostButton key={m} active={meal === m} onClick={() => setMeal(m)} style={{ flex: 1, padding: "8px 4px", fontSize: 12 }}>{m}</GhostButton>

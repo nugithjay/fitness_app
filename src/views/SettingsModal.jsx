@@ -36,6 +36,18 @@ export function SettingsModal({ profile, onSave, onClose, onOpenImport, onOpenIm
           Macros above compute to {computedCalories} kcal/day.
         </div>
 
+        <div style={{ marginTop: 18 }}>
+          <SectionLabel>Default rest timer</SectionLabel>
+          <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+            {[60, 90, 120, 180].map((s) => (
+              <GhostButton key={s} active={Number(local.restSeconds) === s} onClick={() => setLocal({ ...local, restSeconds: s })} style={{ flex: 1, padding: "8px 4px", fontSize: 12 }}>
+                {s < 60 ? `${s}s` : s % 60 === 0 ? `${s / 60}m` : `${Math.floor(s / 60)}m${s % 60}s`}
+              </GhostButton>
+            ))}
+          </div>
+          <FieldInput value={local.restSeconds} onChange={(v) => setLocal({ ...local, restSeconds: v })} type="number" inputMode="numeric" unit="sec" />
+        </div>
+
         <div style={{ marginTop: 20 }}>
           <PrimaryButton icon={Check} onClick={() => onSave({
             weightUnit: local.weightUnit,
@@ -43,6 +55,7 @@ export function SettingsModal({ profile, onSave, onClose, onOpenImport, onOpenIm
             goalProtein: round0(local.goalProtein),
             goalCarbs: round0(local.goalCarbs),
             goalFat: round0(local.goalFat),
+            restSeconds: Math.max(10, round0(local.restSeconds)),
           })}>
             Save
           </PrimaryButton>

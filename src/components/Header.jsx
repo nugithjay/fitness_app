@@ -3,8 +3,13 @@ import { Settings, ChevronLeft, ChevronRight } from "lucide-react";
 import { THEME, formatDateLabel } from "../lib/core";
 import { IconButton } from "./ui";
 
-export function Header({ activeTab, selectedDate, onNavDate, onOpenSettings }) {
-  const titles = { today: "PLATE", food: "Add food", workouts: "Workouts", progress: "Progress" };
+export function Header({ activeTab, foodSubview, selectedDate, onNavDate, onOpenSettings }) {
+  const titles = {
+    today: "PLATE",
+    food: foodSubview === "logging" ? "Log food" : "Food",
+    workouts: "Workouts",
+    progress: "Progress",
+  };
   return (
     <div style={{
       padding: "16px 18px 12px", background: THEME.bg, borderBottom: `1px solid ${THEME.border}`,
@@ -19,7 +24,7 @@ export function Header({ activeTab, selectedDate, onNavDate, onOpenSettings }) {
         </div>
         <IconButton icon={Settings} onClick={onOpenSettings} title="Goals & settings" />
       </div>
-      {activeTab === "today" && (
+      {activeTab === "food" && foodSubview === "diary" && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <IconButton icon={ChevronLeft} onClick={() => onNavDate(-1)} title="Previous day" />
           <div style={{ fontSize: 14, fontWeight: 600, color: THEME.text }}>{formatDateLabel(selectedDate)}</div>

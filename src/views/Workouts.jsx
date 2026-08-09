@@ -3,6 +3,7 @@ import { Dumbbell, Flame, Plus, Trash2, X, Check, Play, ChevronDown, ChevronUp }
 import { THEME, uid, round0, round1, formatDateLabel, toKg, displayWeight, todayISO } from "../lib/core";
 import { Card, SectionLabel, GhostButton, PrimaryButton, FieldInput, IconButton, EmptyState } from "../components/ui";
 import { WorkoutSession } from "./WorkoutSession";
+import { ExerciseDetail } from "../components/ExerciseDetail";
 
 /* ---- manual / backfill form (for logging a session after the fact) ---- */
 
@@ -106,7 +107,7 @@ function WorkoutForm({ date, onSave, weightUnit }) {
   );
 }
 
-function WorkoutHistoryItem({ workout, onDelete, weightUnit }) {
+function WorkoutHistoryItem({ workout, onDelete, weightUnit, onOpenDetail }) {
   const [expanded, setExpanded] = useState(false);
   const volume = workout.type === "strength"
     ? workout.exercises.reduce((sum, ex) => sum + ex.sets.reduce((s, set) => s + set.reps * set.weightKg, 0), 0)
@@ -129,7 +130,12 @@ function WorkoutHistoryItem({ workout, onDelete, weightUnit }) {
         <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
           {workout.exercises.map((ex, i) => (
             <div key={i}>
-              <div style={{ fontSize: 12.5, fontWeight: 600, color: THEME.text }}>{ex.name}</div>
+              <button
+                onClick={(e) => { e.stopPropagation(); onOpenDetail(ex.name); }}
+                style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}
+              >
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: THEME.text, textDecoration: "underline", textDecorationColor: THEME.border, textUnderlineOffset: 2 }}>{ex.name}</span>
+              </button>
               <div style={{ fontSize: 11.5, color: THEME.textMuted, fontFamily: THEME.mono }}>
                 {ex.sets.map((s) => `${s.reps}×${round1(displayWeight(s.weightKg, weightUnit))}${weightUnit}`).join("  ·  ")}
               </div>
@@ -159,9 +165,10 @@ function TemplateCard({ template, onStart, onDelete }) {
 export function WorkoutsView({
   date, workoutLog, templates, onAddWorkout, onDeleteWorkout, weightUnit,
   activeSession, onStartSession, onUpdateSession, onFinishSession, onCancelSession,
-  onDeleteTemplate, exerciseLibrary,
+  onDeleteTemplate, exerciseLibrary, restSeconds,
 }) {
   const [showManualForm, setShowManualForm] = useState(false);
+  const [detailExercise, setDetailExercise] = useState(null);
 
   const grouped = useMemo(() => {
     const byDate = {};
@@ -182,6 +189,8 @@ export function WorkoutsView({
         onCancel={onCancelSession}
         weightUnit={weightUnit}
         exerciseLibrary={exerciseLibrary}
+        workoutLog={workoutLog}
+        restSeconds={restSeconds}
       />
     );
   }
@@ -243,12 +252,16 @@ export function WorkoutsView({
             <div key={d} style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 12, color: THEME.textMuted, marginBottom: 4, fontWeight: 600 }}>{formatDateLabel(d)}</div>
               <Card style={{ padding: "0 16px" }}>
-                {grouped[d].map((w) => <WorkoutHistoryItem key={w.id} workout={w} onDelete={onDeleteWorkout} weightUnit={weightUnit} />)}
+                {grouped[d].map((w) => <WorkoutHistoryItem key={w.id} workout={w} onDelete={onDeleteWorkout} weightUnit={weightUnit} onOpenDetail={setDetailExercise} />)}
               </Card>
             </div>
           ))
         )}
       </div>
+
+      {detailExercise && (
+        <ExerciseDetail exerciseName={detailExercise} workoutLog={workoutLog} weightUnit={weightUnit} onClose={() => setDetailExercise(null)} />
+      )}
     </div>
   );
 }

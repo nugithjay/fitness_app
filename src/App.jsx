@@ -7,7 +7,8 @@ import { supabase } from "./supabaseClient";
 import { Auth } from "./views/Auth";
 import { Header } from "./components/Header";
 import { BottomNav } from "./components/BottomNav";
-import { TodayView } from "./views/Today";
+import { HomeView } from "./views/Home";
+import { FoodDiaryView } from "./views/FoodDiary";
 import { FoodView } from "./views/Food";
 import { WorkoutsView } from "./views/Workouts";
 import { ProgressView } from "./views/Progress";
@@ -21,6 +22,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("today");
   const [selectedDate, setSelectedDate] = useState(todayISO());
   const [foodTabMeal, setFoodTabMeal] = useState(null);
+  const [foodSubview, setFoodSubview] = useState("diary"); // "diary" | "logging"
   const [profile, setProfile] = useState(DEFAULT_PROFILE);
   const [foodLog, setFoodLog] = useState({});
   const [weightLog, setWeightLog] = useState([]);
@@ -33,9 +35,11 @@ export default function App() {
   const [importWorkoutsOpen, setImportWorkoutsOpen] = useState(false);
 
   const changeTab = (tab) => {
-    if (tab === "food" && activeTab !== "food") setFoodTabMeal(null);
+    if (tab === "food") setFoodSubview("diary");
     setActiveTab(tab);
   };
+  const goToFoodLogging = (meal) => { setFoodTabMeal(meal || null); setFoodSubview("logging"); setActiveTab("food"); };
+  const goToFoodDiary = () => { setFoodSubview("diary"); setActiveTab("food"); };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -158,6 +162,7 @@ export default function App() {
 
       <Header
         activeTab={activeTab}
+        foodSubview={foodSubview}
         selectedDate={selectedDate}
         onNavDate={(d) => setSelectedDate((prev) => addDaysISO(prev, d))}
         onOpenSettings={() => setSettingsOpen(true)}
@@ -165,24 +170,36 @@ export default function App() {
 
       <div style={{ flex: 1, overflowY: "auto" }}>
         {activeTab === "today" && (
-          <TodayView
-            date={selectedDate}
+          <HomeView
             foodLog={foodLog}
             weightLog={weightLog}
+            workoutLog={workoutLog}
             profile={profile}
-            onDeleteFood={deleteFoodEntry}
             onLogWeight={logWeight}
-            goToFood={(meal) => { setFoodTabMeal(meal || null); setActiveTab("food"); }}
+            goToFoodLogging={() => goToFoodLogging()}
+            goToFoodDiary={goToFoodDiary}
+            goToWorkouts={() => changeTab("workouts")}
           />
         )}
-        {activeTab === "food" && <FoodView date={selectedDate} foodLog={foodLog} initialMeal={foodTabMeal} onAddEntry={addFoodEntry} />}
+        {activeTab === "food" && foodSubview === "diary" && (
+          <FoodDiaryView
+            date={selectedDate}
+            foodLog={foodLog}
+            profile={profile}
+            onDeleteFood={deleteFoodEntry}
+            goToFoodLogging={goToFoodLogging}
+          />
+        )}
+        {activeTab === "food" && foodSubview === "logging" && (
+          <FoodView date={selectedDate} foodLog={foodLog} initialMeal={foodTabMeal} onAddEntry={addFoodEntry} onBack={goToFoodDiary} />
+        )}
         {activeTab === "workouts" && (
           <WorkoutsView
             date={selectedDate} workoutLog={workoutLog} templates={templates}
             onAddWorkout={addWorkout} onDeleteWorkout={deleteWorkout} weightUnit={profile.weightUnit}
             activeSession={activeSession} onStartSession={startSession} onUpdateSession={updateSession}
             onFinishSession={finishSession} onCancelSession={cancelSession}
-            onDeleteTemplate={deleteTemplate} exerciseLibrary={exerciseLibrary}
+            onDeleteTemplate={deleteTemplate} exerciseLibrary={exerciseLibrary} restSeconds={profile.restSeconds}
           />
         )}
         {activeTab === "progress" && (

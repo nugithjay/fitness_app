@@ -61,7 +61,10 @@ export const DEFAULT_PROFILE = {
   goalProtein: 160,
   goalCarbs: 360,
   goalFat: 80,
+  restSeconds: 120,
 };
+
+export const estimate1RM = (weightKg, reps) => weightKg * (1 + reps / 30);
 
 export const MEALS = ["Breakfast", "Lunch", "Dinner", "Snacks"];
 export function guessMealFromTime(hhmm) {

@@ -24,6 +24,13 @@ export async function setUserData(key, value) {
   const { data: userData } = await supabase.auth.getUser();
   const user = userData?.user;
   if (!user) return;
+  // The value column is NOT NULL — clearing something (e.g. ending a workout
+  // session) means deleting the row, not trying to save a null into it.
+  if (value === null || value === undefined) {
+    const { error } = await supabase.from("user_data").delete().eq("user_id", user.id).eq("key", key);
+    if (error) console.error("setUserData (clear) failed", key, error);
+    return;
+  }
   const { error } = await supabase
     .from("user_data")
     .upsert(

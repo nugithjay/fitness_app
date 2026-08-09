@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { X, Check, Plus, Trash2, ChevronLeft, Search } from "lucide-react";
 import { THEME, uid, round1, toKg, displayWeight } from "../lib/core";
-import { Card, GhostButton, PrimaryButton, IconButton, FieldInput } from "../components/ui";
+import { Card, GhostButton, FieldInput, IconButton } from "../components/ui";
 import { useRestTimer } from "../hooks/useRestTimer";
-
-const DEFAULT_REST_SECONDS = 90;
+import { ExerciseDetail } from "../components/ExerciseDetail";
 
 function formatElapsed(ms) {
   const totalSec = Math.max(0, Math.floor(ms / 1000));
@@ -63,7 +62,43 @@ function ExercisePicker({ library, onPick, onClose }) {
   );
 }
 
-function ExerciseCard({ exercise, weightUnit, onUpdate, onRemove, onSetLogged }) {
+// A set row that reveals a delete action on left-swipe — no library, just touch tracking.
+function SwipeSetRow({ children, onDelete }) {
+  const [dx, setDx] = useState(0);
+  const dragging = useRef(false);
+  const startX = useRef(0);
+
+  const onTouchStart = (e) => { startX.current = e.touches[0].clientX; dragging.current = true; };
+  const onTouchMove = (e) => {
+    if (!dragging.current) return;
+    const delta = e.touches[0].clientX - startX.current;
+    if (delta < 0) setDx(Math.max(delta, -72));
+  };
+  const onTouchEnd = () => {
+    dragging.current = false;
+    if (dx < -44) onDelete();
+    setDx(0);
+  };
+
+  return (
+    <div style={{ position: "relative", overflow: "hidden", borderRadius: 8 }}>
+      <div style={{
+        position: "absolute", inset: 0, background: THEME.danger, borderRadius: 8,
+        display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: 14,
+      }}>
+        <Trash2 size={15} color="#fff" />
+      </div>
+      <div
+        onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+        style={{ transform: `translateX(${dx}px)`, transition: dragging.current ? "none" : "transform 0.2s ease", background: THEME.surfaceHigh, borderRadius: 8 }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ExerciseCard({ exercise, weightUnit, onUpdate, onRemove, onSetLogged, onOpenDetail }) {
   const updateSet = (setId, patch) => onUpdate({ ...exercise, sets: exercise.sets.map((s) => (s.id === setId ? { ...s, ...patch } : s)) });
   const removeSet = (setId) => onUpdate({ ...exercise, sets: exercise.sets.filter((s) => s.id !== setId) });
   const addSet = () => {
@@ -85,58 +120,63 @@ function ExerciseCard({ exercise, weightUnit, onUpdate, onRemove, onSetLogged })
   };
 
   return (
-    <Card style={{ marginBottom: 12 }}>
+    <Card style={{ marginBottom: 12, padding: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: THEME.text }}>{exercise.name}</span>
+        <button onClick={onOpenDetail} style={{ background: "none", border: "none", padding: 0, textAlign: "left", cursor: "pointer" }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: THEME.text, textDecoration: "underline", textDecorationColor: THEME.border, textDecorationThickness: 1, textUnderlineOffset: 3 }}>
+            {exercise.name}
+          </span>
+        </button>
         <IconButton icon={Trash2} onClick={onRemove} />
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <div style={{ display: "flex", gap: 6, fontSize: 10.5, color: THEME.textMuted, padding: "0 2px" }}>
-          <span style={{ width: 20 }}>#</span>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ display: "flex", gap: 6, fontSize: 10, color: THEME.textMuted, padding: "0 8px" }}>
+          <span style={{ width: 18 }}>#</span>
           <span style={{ flex: 1 }}>Reps</span>
           <span style={{ flex: 1 }}>Weight ({weightUnit})</span>
-          <span style={{ width: 34 }} />
+          <span style={{ width: 30 }} />
         </div>
         {exercise.sets.map((s, i) => (
-          <div key={s.id} style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <span style={{ width: 20, fontSize: 12, color: THEME.textMuted, fontFamily: THEME.mono }}>{i + 1}</span>
-            <input
-              value={s.reps}
-              onChange={(e) => updateSet(s.id, { reps: e.target.value })}
-              type="number" inputMode="numeric" placeholder="0"
-              style={{ flex: 1, background: THEME.surfaceHigh, border: `1px solid ${THEME.border}`, borderRadius: 8, padding: "9px 8px", color: THEME.text, fontFamily: THEME.mono, fontSize: 14, textAlign: "center" }}
-            />
-            <input
-              value={s.weight}
-              onChange={(e) => updateSet(s.id, { weight: e.target.value })}
-              type="number" inputMode="decimal" placeholder="0"
-              style={{ flex: 1, background: THEME.surfaceHigh, border: `1px solid ${THEME.border}`, borderRadius: 8, padding: "9px 8px", color: THEME.text, fontFamily: THEME.mono, fontSize: 14, textAlign: "center" }}
-            />
-            <button
-              onClick={() => toggleDone(s)}
-              style={{
-                width: 34, height: 34, borderRadius: 8, flexShrink: 0, cursor: "pointer",
-                border: `1px solid ${s.done ? THEME.success : THEME.border}`,
-                background: s.done ? THEME.success : "transparent",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}
-            >
-              <Check size={16} color={s.done ? "#12241B" : THEME.textMuted} />
-            </button>
-            <button onClick={() => removeSet(s.id)} style={{ background: "none", border: "none", color: THEME.textMuted, cursor: "pointer", padding: 2 }}>
-              <X size={13} />
-            </button>
-          </div>
+          <SwipeSetRow key={s.id} onDelete={() => removeSet(s.id)}>
+            <div style={{ display: "flex", gap: 6, alignItems: "center", padding: "5px 8px" }}>
+              <span style={{ width: 18, fontSize: 12, color: THEME.textMuted, fontFamily: THEME.mono }}>{i + 1}</span>
+              <input
+                value={s.reps}
+                onChange={(e) => updateSet(s.id, { reps: e.target.value })}
+                type="number" inputMode="numeric" placeholder="0"
+                style={{ flex: 1, background: THEME.bg, border: `1px solid ${THEME.border}`, borderRadius: 7, padding: "8px 6px", color: THEME.text, fontFamily: THEME.mono, fontSize: 14, textAlign: "center" }}
+              />
+              <input
+                value={s.weight}
+                onChange={(e) => updateSet(s.id, { weight: e.target.value })}
+                type="number" inputMode="decimal" placeholder="0"
+                style={{ flex: 1, background: THEME.bg, border: `1px solid ${THEME.border}`, borderRadius: 7, padding: "8px 6px", color: THEME.text, fontFamily: THEME.mono, fontSize: 14, textAlign: "center" }}
+              />
+              <button
+                onClick={() => toggleDone(s)}
+                style={{
+                  width: 30, height: 30, borderRadius: 7, flexShrink: 0, cursor: "pointer",
+                  border: `1px solid ${s.done ? THEME.success : THEME.border}`,
+                  background: s.done ? THEME.success : "transparent",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}
+              >
+                <Check size={15} color={s.done ? "#12241B" : THEME.textMuted} />
+              </button>
+            </div>
+          </SwipeSetRow>
         ))}
         <GhostButton icon={Plus} onClick={addSet} style={{ marginTop: 2 }}>Add set</GhostButton>
       </div>
+      <div style={{ fontSize: 10, color: THEME.textMuted, marginTop: 8, textAlign: "center" }}>Swipe a set left to delete</div>
     </Card>
   );
 }
 
-export function WorkoutSession({ session, onChange, onFinish, onCancel, weightUnit, exerciseLibrary }) {
+export function WorkoutSession({ session, onChange, onFinish, onCancel, weightUnit, exerciseLibrary, workoutLog, restSeconds }) {
   const [elapsedMs, setElapsedMs] = useState(Date.now() - session.startedAt);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [detailExercise, setDetailExercise] = useState(null);
   const rest = useRestTimer();
 
   useEffect(() => {
@@ -227,7 +267,8 @@ export function WorkoutSession({ session, onChange, onFinish, onCancel, weightUn
             weightUnit={weightUnit}
             onUpdate={(patch) => updateExercise(ex.id, patch)}
             onRemove={() => removeExercise(ex.id)}
-            onSetLogged={() => rest.start(DEFAULT_REST_SECONDS)}
+            onSetLogged={() => rest.start(restSeconds)}
+            onOpenDetail={() => setDetailExercise(ex.name)}
           />
         ))
       )}
@@ -235,6 +276,9 @@ export function WorkoutSession({ session, onChange, onFinish, onCancel, weightUn
       <GhostButton icon={Plus} onClick={() => setPickerOpen(true)} style={{ width: "100%" }}>Add exercise</GhostButton>
 
       {pickerOpen && <ExercisePicker library={exerciseLibrary} onPick={addExerciseFromLibrary} onClose={() => setPickerOpen(false)} />}
+      {detailExercise && (
+        <ExerciseDetail exerciseName={detailExercise} workoutLog={workoutLog} weightUnit={weightUnit} onClose={() => setDetailExercise(null)} />
+      )}
     </div>
   );
 }
