@@ -230,14 +230,16 @@ export function FoodView({ date, foodLog, initialMeal, onAddEntry }) {
         </div>
       </Card>
 
-      {scanner.scanning && (
-        <Card style={{ marginTop: 10, padding: 0, overflow: "hidden" }}>
-          <div style={{ position: "relative", background: "#000" }}>
-            <video ref={scanner.videoRef} style={{ width: "100%", display: "block" }} muted playsInline />
-            <div style={{ position: "absolute", inset: "30% 12%", border: `2px solid ${THEME.accent}`, borderRadius: 8, pointerEvents: "none" }} />
-          </div>
-        </Card>
-      )}
+      <Card style={{
+        marginTop: scanner.scanning ? 10 : 0, padding: 0, overflow: "hidden",
+        border: scanner.scanning ? undefined : "none",
+        height: scanner.scanning ? "auto" : 0,
+      }}>
+        <div style={{ position: "relative", background: "#000", display: scanner.scanning ? "block" : "none" }}>
+          <video ref={scanner.videoRef} autoPlay muted playsInline style={{ width: "100%", display: "block" }} />
+          <div style={{ position: "absolute", inset: "30% 12%", border: `2px solid ${THEME.accent}`, borderRadius: 8, pointerEvents: "none" }} />
+        </div>
+      </Card>
       {scanner.error && <div style={{ fontSize: 12, color: THEME.danger, marginTop: 8 }}>{scanner.error}</div>}
 
       {isBarcodeQuery && (
