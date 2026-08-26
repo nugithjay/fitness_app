@@ -1,18 +1,35 @@
 import React, { useState } from "react";
 import { X, FileUp, Upload, Check, ArrowLeft } from "lucide-react";
-import { THEME, uid, round1, toKg } from "../lib/core";
+import { THEME, uid, round1 } from "../lib/core";
 import { Card, GhostButton, PrimaryButton, MapField, IconButton } from "../components/ui";
 import { normHeader, guessColumn, parseFlexibleDate, parseSpreadsheetFile } from "../lib/importHelpers";
 
-export function ImportWorkoutsModal({ onClose, onImportWorkouts }) {
+// Parses "12.3 mi", "5 km", "6,345 ft" etc. down to a plain number in the given unit's base.
+function parseNumeric(raw) {
+  if (raw == null) return null;
+  const n = parseFloat(String(raw).replace(/,/g, "").replace(/[^\d.-]/g, ""));
+  return isNaN(n) ? null : n;
+}
+// Garmin duration is often "hh:mm:ss" — convert to minutes.
+function parseDurationToMinutes(raw) {
+  if (raw == null) return null;
+  const s = String(raw).trim();
+  if (/^\d+(\.\d+)?$/.test(s)) return parseFloat(s); // already a plain number of minutes
+  const parts = s.split(":").map((p) => parseFloat(p));
+  if (parts.length === 3) return parts[0] * 60 + parts[1] + parts[2] / 60;
+  if (parts.length === 2) return parts[0] + parts[1] / 60;
+  return null;
+}
+
+export function ImportGarminModal({ onClose, onImportWorkouts }) {
   const [stage, setStage] = useState("pick");
   const [fileName, setFileName] = useState("");
   const [sheetHandle, setSheetHandle] = useState(null);
   const [sheetName, setSheetName] = useState("");
   const [headers, setHeaders] = useState([]);
   const [rows, setRows] = useState([]);
-  const [mapping, setMapping] = useState({ date: "", workout: "", exercise: "", weight: "", reps: "" });
-  const [weightUnitOfFile, setWeightUnitOfFile] = useState("kg");
+  const [mapping, setMapping] = useState({ date: "", activityType: "", duration: "", distance: "", calories: "", avgHR: "", maxHR: "" });
+  const [distanceUnit, setDistanceUnit] = useState("km");
   const [error, setError] = useState("");
   const [resultMsg, setResultMsg] = useState("");
 
@@ -31,7 +48,7 @@ export function ImportWorkoutsModal({ onClose, onImportWorkouts }) {
         loadSheet(handle, handle.sheetNames ? handle.sheetNames[0] : null);
       }
     } catch (err) {
-      setError("Couldn't read that file. Make sure it's the CSV exported from Strong's Settings > Export Data.");
+      setError("Couldn't read that file. Make sure it's the CSV from Garmin Connect's Activities page (gear icon → Export CSV).");
     }
   };
 
@@ -41,55 +58,49 @@ export function ImportWorkoutsModal({ onClose, onImportWorkouts }) {
     setRows(r);
     setMapping({
       date: guessColumn(h, ["date"]),
-      workout: guessColumn(h, ["workoutname", "workout"]),
-      exercise: guessColumn(h, ["exercisename", "exercise"]),
-      weight: guessColumn(h, ["weight"], ["unit"]),
-      reps: guessColumn(h, ["reps", "rep"]),
+      activityType: guessColumn(h, ["activitytype", "type", "activity"]),
+      duration: guessColumn(h, ["time", "duration"], ["movingtime", "elapsedtime"]),
+      distance: guessColumn(h, ["distance"]),
+      calories: guessColumn(h, ["calorie"]),
+      avgHR: guessColumn(h, ["avghr", "averageheartrate", "avgheartrate"]),
+      maxHR: guessColumn(h, ["maxhr", "maxheartrate"]),
     });
-    const unitCol = guessColumn(h, ["weightunit", "unit"]);
-    if (unitCol && r.length) {
-      const sample = String(r[0][unitCol] || "").toLowerCase();
-      if (sample.includes("lb")) setWeightUnitOfFile("lb");
-    }
     setStage("map");
   };
 
   const runImport = () => {
-    if (!mapping.date || !mapping.workout || !mapping.exercise || !mapping.weight || !mapping.reps) {
-      setError("Every field needs a column selected.");
+    if (!mapping.date || !mapping.activityType) {
+      setError("Date and Activity Type columns are required.");
       return;
     }
     setError("");
 
-    const sessions = new Map();
+    const workouts = [];
     rows.forEach((row) => {
       const date = parseFlexibleDate(row[mapping.date]);
-      const workoutName = String(row[mapping.workout] || "Workout").trim();
-      const exerciseName = String(row[mapping.exercise] || "").trim();
-      const reps = parseInt(row[mapping.reps], 10);
-      const weightRaw = parseFloat(row[mapping.weight]);
-      if (!date || !exerciseName || !reps) return;
-      const key = `${date}|||${workoutName}`;
-      if (!sessions.has(key)) sessions.set(key, { date, name: workoutName, exerciseOrder: [], exercises: new Map() });
-      const session = sessions.get(key);
-      if (!session.exercises.has(exerciseName)) {
-        session.exercises.set(exerciseName, []);
-        session.exerciseOrder.push(exerciseName);
-      }
-      const weightKg = isNaN(weightRaw) ? 0 : toKg(weightRaw, weightUnitOfFile);
-      session.exercises.get(exerciseName).push({ reps, weightKg: round1(weightKg) });
+      const name = String(row[mapping.activityType] || "Activity").trim();
+      if (!date || !name) return;
+
+      const durationMin = mapping.duration ? parseDurationToMinutes(row[mapping.duration]) : null;
+      let distanceKm = mapping.distance ? parseNumeric(row[mapping.distance]) : null;
+      if (distanceKm != null && distanceUnit === "mi") distanceKm = round1(distanceKm * 1.60934);
+      const caloriesBurned = mapping.calories ? parseNumeric(row[mapping.calories]) : null;
+      const avgHR = mapping.avgHR ? parseNumeric(row[mapping.avgHR]) : null;
+      const maxHR = mapping.maxHR ? parseNumeric(row[mapping.maxHR]) : null;
+
+      workouts.push({
+        id: uid(), date, type: "cardio", name,
+        durationMin: durationMin != null ? round1(durationMin) : null,
+        distanceKm: distanceKm != null ? round1(distanceKm) : null,
+        caloriesBurned: caloriesBurned != null ? Math.round(caloriesBurned) : null,
+        avgHR: avgHR != null ? Math.round(avgHR) : null,
+        maxHR: maxHR != null ? Math.round(maxHR) : null,
+        source: "garmin",
+      });
     });
 
-    const workouts = Array.from(sessions.values()).map((s) => ({
-      id: uid(),
-      date: s.date,
-      type: "strength",
-      name: s.name,
-      exercises: s.exerciseOrder.map((name) => ({ name, sets: s.exercises.get(name) })),
-    }));
-
     onImportWorkouts(workouts);
-    setResultMsg(`Imported ${workouts.length} workout${workouts.length === 1 ? "" : "s"} into your history.`);
+    setResultMsg(`Imported ${workouts.length} activit${workouts.length === 1 ? "y" : "ies"} from Garmin.`);
     setStage("done");
   };
 
@@ -104,7 +115,7 @@ export function ImportWorkoutsModal({ onClose, onImportWorkouts }) {
             {stage !== "pick" && stage !== "done" && (
               <IconButton icon={ArrowLeft} onClick={() => setStage(sheetHandle && sheetHandle.sheetNames && sheetHandle.sheetNames.length > 1 ? "sheet" : "pick")} />
             )}
-            <span style={{ fontSize: 15, fontWeight: 700, color: THEME.text }}>Import from Strong</span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: THEME.text }}>Import from Garmin</span>
           </div>
           <IconButton icon={X} onClick={onClose} />
         </div>
@@ -112,7 +123,7 @@ export function ImportWorkoutsModal({ onClose, onImportWorkouts }) {
         {stage === "pick" && (
           <div>
             <div style={{ fontSize: 13, color: THEME.textMuted, marginBottom: 14, lineHeight: 1.5 }}>
-              In Strong: Settings → Export Data. Upload the CSV it gives you — it's one row per set, so this may take a moment to process.
+              On connect.garmin.com (web, not the app): go to <strong>Activities</strong>, then the gear icon top-right → <strong>Export CSV</strong>. Upload that file here.
             </div>
             <label style={{
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
@@ -137,19 +148,23 @@ export function ImportWorkoutsModal({ onClose, onImportWorkouts }) {
 
         {stage === "map" && (
           <div>
-            <div style={{ fontSize: 12, color: THEME.textMuted, marginBottom: 12 }}>{fileName} · {rows.length} set rows found</div>
+            <div style={{ fontSize: 12, color: THEME.textMuted, marginBottom: 12 }}>{fileName} · {rows.length} rows found</div>
             <MapField label="Date column" value={mapping.date} onChange={(v) => setMapping({ ...mapping, date: v })} headers={headers} />
-            <MapField label="Workout name column" value={mapping.workout} onChange={(v) => setMapping({ ...mapping, workout: v })} headers={headers} />
-            <MapField label="Exercise name column" value={mapping.exercise} onChange={(v) => setMapping({ ...mapping, exercise: v })} headers={headers} />
-            <MapField label="Weight column" value={mapping.weight} onChange={(v) => setMapping({ ...mapping, weight: v })} headers={headers} />
-            <MapField label="Reps column" value={mapping.reps} onChange={(v) => setMapping({ ...mapping, reps: v })} headers={headers} />
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 11, color: THEME.textMuted, marginBottom: 5 }}>Weight values in this file are in</div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <GhostButton active={weightUnitOfFile === "kg"} onClick={() => setWeightUnitOfFile("kg")} style={{ flex: 1 }}>kg</GhostButton>
-                <GhostButton active={weightUnitOfFile === "lb"} onClick={() => setWeightUnitOfFile("lb")} style={{ flex: 1 }}>lb</GhostButton>
+            <MapField label="Activity type column" value={mapping.activityType} onChange={(v) => setMapping({ ...mapping, activityType: v })} headers={headers} />
+            <MapField label="Duration column" value={mapping.duration} onChange={(v) => setMapping({ ...mapping, duration: v })} headers={headers} optional />
+            <MapField label="Distance column" value={mapping.distance} onChange={(v) => setMapping({ ...mapping, distance: v })} headers={headers} optional />
+            {mapping.distance && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 11, color: THEME.textMuted, marginBottom: 5 }}>Distance values in this file are in</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <GhostButton active={distanceUnit === "km"} onClick={() => setDistanceUnit("km")} style={{ flex: 1 }}>km</GhostButton>
+                  <GhostButton active={distanceUnit === "mi"} onClick={() => setDistanceUnit("mi")} style={{ flex: 1 }}>miles</GhostButton>
+                </div>
               </div>
-            </div>
+            )}
+            <MapField label="Calories column" value={mapping.calories} onChange={(v) => setMapping({ ...mapping, calories: v })} headers={headers} optional />
+            <MapField label="Avg heart rate column" value={mapping.avgHR} onChange={(v) => setMapping({ ...mapping, avgHR: v })} headers={headers} optional />
+            <MapField label="Max heart rate column" value={mapping.maxHR} onChange={(v) => setMapping({ ...mapping, maxHR: v })} headers={headers} optional />
             {error && <div style={{ fontSize: 12, color: THEME.danger, marginBottom: 10 }}>{error}</div>}
             <PrimaryButton icon={Upload} onClick={runImport}>Import</PrimaryButton>
           </div>

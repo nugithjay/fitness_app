@@ -1,29 +1,26 @@
-import { todayISO, addDaysISO, estimate1RM, round0, round1 } from "./core";
+import { todayISO, addDaysISO, estimate1RM, round1 } from "./core";
 
-export function computeStreak(foodLog) {
+// Consecutive days with a weigh-in, most recent first (today doesn't break the
+// streak if you just haven't logged yet today).
+export function computeStreak(weightLog) {
+  const logged = new Set(weightLog.map((w) => w.date));
   let streak = 0;
   let d = todayISO();
-  if (!(foodLog[d] && foodLog[d].length > 0)) d = addDaysISO(d, -1);
-  while (foodLog[d] && foodLog[d].length > 0) {
+  if (!logged.has(d)) d = addDaysISO(d, -1);
+  while (logged.has(d)) {
     streak++;
     d = addDaysISO(d, -1);
   }
   return streak;
 }
 
-export function computeWeeklyRollup(foodLog, weightLog, workoutLog) {
+export function computeWeeklyRollup(weightLog, workoutLog) {
   const days = Array.from({ length: 7 }, (_, i) => addDaysISO(todayISO(), -i));
-  const totalCals = days.reduce((s, d) => s + (foodLog[d] || []).reduce((s2, e) => s2 + Number(e.calories || 0), 0), 0);
-  const loggedDays = days.filter((d) => (foodLog[d] || []).length > 0).length;
-  const avgCalories = loggedDays ? round0(totalCals / loggedDays) : 0;
-
   const sortedWeights = [...weightLog].sort((a, b) => (a.date < b.date ? -1 : 1));
   const inWeek = sortedWeights.filter((w) => w.date >= days[6]);
   const weightChangeKg = inWeek.length >= 2 ? inWeek[inWeek.length - 1].weightKg - inWeek[0].weightKg : null;
-
   const workoutsThisWeek = workoutLog.filter((w) => w.date >= days[6]).length;
-
-  return { avgCalories, weightChangeKg, workoutsThisWeek, loggedDays };
+  return { weightChangeKg, workoutsThisWeek };
 }
 
 export function computeRecentPR(workoutLog) {

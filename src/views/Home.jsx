@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { Utensils, Scale, Dumbbell, Flame, Trophy, Check, ChevronRight } from "lucide-react";
-import { THEME, round0, round1, toKg, displayWeight, todayISO } from "../lib/core";
+import { Scale, Dumbbell, Flame, Trophy, Check } from "lucide-react";
+import { THEME, round1, toKg, displayWeight, todayISO } from "../lib/core";
 import { computeStreak, computeWeeklyRollup, computeRecentPR } from "../lib/stats";
 import { Card, SectionLabel, FieldInput } from "../components/ui";
 
@@ -18,17 +18,13 @@ const QuickAction = ({ icon: Icon, label, onClick }) => (
   </button>
 );
 
-export function HomeView({ foodLog, weightLog, workoutLog, profile, onLogWeight, goToFoodLogging, goToFoodDiary, goToWorkouts }) {
+export function HomeView({ weightLog, workoutLog, profile, onLogWeight, goToWorkouts }) {
   const [editingWeight, setEditingWeight] = useState(false);
   const [weightInput, setWeightInput] = useState("");
 
-  const streak = useMemo(() => computeStreak(foodLog), [foodLog]);
-  const rollup = useMemo(() => computeWeeklyRollup(foodLog, weightLog, workoutLog), [foodLog, weightLog, workoutLog]);
+  const streak = useMemo(() => computeStreak(weightLog), [weightLog]);
+  const rollup = useMemo(() => computeWeeklyRollup(weightLog, workoutLog), [weightLog, workoutLog]);
   const recentPR = useMemo(() => computeRecentPR(workoutLog), [workoutLog]);
-
-  const todayEntries = foodLog[todayISO()] || [];
-  const todayCalories = todayEntries.reduce((s, e) => s + Number(e.calories || 0), 0);
-  const calPct = profile.goalCalories > 0 ? Math.min((todayCalories / profile.goalCalories) * 100, 100) : 0;
 
   const sortedWeights = [...weightLog].sort((a, b) => (a.date < b.date ? 1 : -1));
   const latestWeight = sortedWeights[0];
@@ -45,9 +41,8 @@ export function HomeView({ foodLog, weightLog, workoutLog, profile, onLogWeight,
   return (
     <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
       <div style={{ display: "flex", gap: 10 }}>
-        <QuickAction icon={Utensils} label="Log food" onClick={goToFoodLogging} />
         <QuickAction icon={Scale} label="Log weight" onClick={() => setEditingWeight(true)} />
-        <QuickAction icon={Dumbbell} label="Workout" onClick={goToWorkouts} />
+        <QuickAction icon={Dumbbell} label="Workouts" onClick={goToWorkouts} />
       </div>
 
       {editingWeight && (
@@ -66,7 +61,7 @@ export function HomeView({ foodLog, weightLog, workoutLog, profile, onLogWeight,
           <Flame size={20} color={THEME.accent} />
           <div>
             <div style={{ fontFamily: THEME.mono, fontSize: 18, fontWeight: 700, color: THEME.text }}>{streak} day{streak !== 1 ? "s" : ""}</div>
-            <div style={{ fontSize: 11.5, color: THEME.textMuted }}>Logging streak</div>
+            <div style={{ fontSize: 11.5, color: THEME.textMuted }}>Weigh-in streak</div>
           </div>
         </Card>
       )}
@@ -83,32 +78,11 @@ export function HomeView({ foodLog, weightLog, workoutLog, profile, onLogWeight,
         </Card>
       )}
 
-      <button onClick={goToFoodDiary} style={{ width: "100%", background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}>
-        <Card>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 11, color: THEME.textMuted, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 6 }}>Today's calories</div>
-              <div style={{ fontFamily: THEME.mono, fontSize: 20, fontWeight: 700, color: THEME.text }}>
-                {round0(todayCalories)} <span style={{ fontSize: 13, color: THEME.textMuted, fontWeight: 500 }}>/ {profile.goalCalories}</span>
-              </div>
-              <div style={{ height: 6, borderRadius: 4, background: THEME.surfaceHigh, overflow: "hidden", marginTop: 8 }}>
-                <div style={{ height: "100%", width: `${calPct}%`, background: todayCalories > profile.goalCalories ? THEME.danger : THEME.accent, borderRadius: 4 }} />
-              </div>
-            </div>
-            <ChevronRight size={18} color={THEME.textMuted} style={{ marginLeft: 10 }} />
-          </div>
-        </Card>
-      </button>
-
       <div>
         <SectionLabel>This week</SectionLabel>
         <div style={{ display: "flex", gap: 8 }}>
           <Card style={{ flex: 1, padding: 12 }}>
-            <div style={{ fontSize: 10, color: THEME.textMuted, textTransform: "uppercase" }}>Avg kcal</div>
-            <div style={{ fontFamily: THEME.mono, fontSize: 17, fontWeight: 700, color: THEME.text, marginTop: 4 }}>{rollup.avgCalories || "—"}</div>
-          </Card>
-          <Card style={{ flex: 1, padding: 12 }}>
-            <div style={{ fontSize: 10, color: THEME.textMuted, textTransform: "uppercase" }}>Weight</div>
+            <div style={{ fontSize: 10, color: THEME.textMuted, textTransform: "uppercase" }}>Weight change</div>
             <div style={{ fontFamily: THEME.mono, fontSize: 17, fontWeight: 700, color: THEME.text, marginTop: 4 }}>
               {weightChange != null ? `${weightChange > 0 ? "+" : ""}${round1(displayWeight(weightChange, profile.weightUnit))}` : "—"}
             </div>

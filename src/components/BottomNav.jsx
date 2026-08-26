@@ -1,13 +1,12 @@
 import React from "react";
-import { Home, Utensils, Dumbbell, BarChart3 } from "lucide-react";
+import { Home, BarChart3, Upload } from "lucide-react";
 import { THEME } from "../lib/core";
 
 export function BottomNav({ activeTab, setActiveTab }) {
   const items = [
-    { id: "today", label: "Today", icon: Home },
-    { id: "food", label: "Food", icon: Utensils },
-    { id: "workouts", label: "Workouts", icon: Dumbbell },
-    { id: "progress", label: "Progress", icon: BarChart3 },
+    { id: "today", label: "Dashboard", icon: Home },
+    { id: "stats", label: "Stats", icon: BarChart3 },
+    { id: "import", label: "Import", icon: Upload },
   ];
   return (
     <div style={{

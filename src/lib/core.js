@@ -27,10 +27,6 @@ export const addDaysISO = (iso, delta) => {
   d.setDate(d.getDate() + delta);
   return d.toISOString().slice(0, 10);
 };
-export const currentTimeHHMM = () => {
-  const d = new Date();
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-};
 export const formatDateLabel = (iso) => {
   const today = todayISO();
   if (iso === today) return "Today";
@@ -57,21 +53,6 @@ export const toKg = (value, unit) => (unit === "lb" ? lbToKg(Number(value)) : Nu
 
 export const DEFAULT_PROFILE = {
   weightUnit: "kg",
-  goalCalories: 2800,
-  goalProtein: 160,
-  goalCarbs: 360,
-  goalFat: 80,
-  restSeconds: 120,
 };
 
 export const estimate1RM = (weightKg, reps) => weightKg * (1 + reps / 30);
-
-export const MEALS = ["Breakfast", "Lunch", "Dinner", "Snacks"];
-export function guessMealFromTime(hhmm) {
-  const hour = parseInt(String(hhmm).split(":")[0], 10);
-  if (isNaN(hour)) return "Snacks";
-  if (hour < 11) return "Breakfast";
-  if (hour < 15) return "Lunch";
-  if (hour < 18) return "Snacks";
-  return "Dinner";
-}
