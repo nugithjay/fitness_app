@@ -1,9 +1,6 @@
 -- PLATE — one-time Supabase setup.
 -- In your Supabase project: SQL Editor > New query > paste this whole file > Run.
 
--- 1) Single key/value table holds all app data (profile, food log, weight log,
---    workout log, progress photo index) — mirrors the original app's storage model,
---    scoped per logged-in user.
 create table if not exists user_data (
   user_id uuid references auth.users(id) on delete cascade not null,
   key text not null,
@@ -30,8 +27,6 @@ drop policy if exists "delete own data" on user_data;
 create policy "delete own data" on user_data
   for delete using (auth.uid() = user_id);
 
--- 2) Private storage bucket for progress photos.
---    Files are stored under a path like  {user_id}/{photo_id}.jpg
 insert into storage.buckets (id, name, public)
   values ('progress-photos', 'progress-photos', false)
   on conflict (id) do nothing;
@@ -56,5 +51,3 @@ create policy "delete own photos" on storage.objects
     bucket_id = 'progress-photos'
     and auth.uid()::text = (storage.foldername(name))[1]
   );
-
--- Done. Every row and every photo is only ever readable by the user who created it.

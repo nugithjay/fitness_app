@@ -2,9 +2,6 @@ import { useRef, useState, useEffect } from "react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import { NotFoundException, DecodeHintType, BarcodeFormat } from "@zxing/library";
 
-// Live camera barcode scanning that works across Chrome/Android AND Safari/iOS,
-// because it decodes frames itself instead of relying on the browser's native
-// (Chrome-only) BarcodeDetector API.
 export function useBarcodeScanner(onDetected) {
   const videoRef = useRef(null);
   const controlsRef = useRef(null);
@@ -44,10 +41,7 @@ export function useBarcodeScanner(onDetected) {
             const value = result.getText();
             stop();
             onDetected(value);
-          }
-          // NotFoundException fires continuously between frames with no barcode
-          // in view — that's normal and expected, not a real error.
-          else if (err && !(err instanceof NotFoundException)) {
+          } else if (err && !(err instanceof NotFoundException)) {
             console.warn("Scan frame error", err);
           }
         }

@@ -3,7 +3,7 @@ import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
 } from "recharts";
-import { Camera, Trash2, X, Loader2, Plus } from "lucide-react";
+import { Trash2, X, Loader2, Plus } from "lucide-react";
 import {
   THEME, uid, round0, todayISO, addDaysISO, shortLabel, isoWeekStart, displayWeight,
 } from "../lib/core";
@@ -15,7 +15,6 @@ function ProgressPhotos({ photos, onAdd, onDelete }) {
   const [urls, setUrls] = useState({});
   const [uploading, setUploading] = useState(false);
   const [viewing, setViewing] = useState(null);
-  const fileRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,7 +55,7 @@ function ProgressPhotos({ photos, onAdd, onDelete }) {
             flexShrink: 0, width: 84, height: 84, borderRadius: 12, border: `1.5px dashed ${THEME.border}`,
             display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: THEME.textMuted,
           }}>
-            <input ref={fileRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handleFile} />
+            <input type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handleFile} />
             {uploading ? <Loader2 size={20} className="spin" /> : <Plus size={22} />}
           </label>
           {sorted.map((p) => (

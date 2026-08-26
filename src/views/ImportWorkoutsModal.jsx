@@ -46,7 +46,6 @@ export function ImportWorkoutsModal({ onClose, onImportWorkouts, onImportTemplat
       weight: guessColumn(h, ["weight"], ["unit"]),
       reps: guessColumn(h, ["reps", "rep"]),
     });
-    // guess the file's weight unit from a "Weight Unit" column if one exists
     const unitCol = guessColumn(h, ["weightunit", "unit"]);
     if (unitCol && r.length) {
       const sample = String(r[0][unitCol] || "").toLowerCase();
@@ -62,9 +61,7 @@ export function ImportWorkoutsModal({ onClose, onImportWorkouts, onImportTemplat
     }
     setError("");
 
-    // Group rows into sessions (date + workout name), preserving set order,
-    // and within each session group consecutive/all sets by exercise name.
-    const sessions = new Map(); // key: date|workoutName -> { date, name, exerciseOrder: [], exercises: Map(name -> sets[]) }
+    const sessions = new Map();
     rows.forEach((row) => {
       const date = parseFlexibleDate(row[mapping.date]);
       const workoutName = String(row[mapping.workout] || "Workout").trim();
@@ -91,7 +88,6 @@ export function ImportWorkoutsModal({ onClose, onImportWorkouts, onImportTemplat
       exercises: s.exerciseOrder.map((name) => ({ name, sets: s.exercises.get(name) })),
     }));
 
-    // Derive templates: one per distinct workout name, using its most recent session's exercise list.
     const byName = new Map();
     workouts.forEach((w) => {
       const existing = byName.get(w.name);

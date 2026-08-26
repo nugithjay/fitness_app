@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from "react";
-import { Utensils, Scale, Dumbbell, Flame, Trophy, Pencil, Check, ChevronRight } from "lucide-react";
+import { Utensils, Scale, Dumbbell, Flame, Trophy, Check, ChevronRight } from "lucide-react";
 import { THEME, round0, round1, toKg, displayWeight, todayISO } from "../lib/core";
 import { computeStreak, computeWeeklyRollup, computeRecentPR } from "../lib/stats";
-import { Card, SectionLabel, FieldInput, IconButton } from "../components/ui";
+import { Card, SectionLabel, FieldInput } from "../components/ui";
 
 const QuickAction = ({ icon: Icon, label, onClick }) => (
   <button
@@ -32,7 +32,6 @@ export function HomeView({ foodLog, weightLog, workoutLog, profile, onLogWeight,
 
   const sortedWeights = [...weightLog].sort((a, b) => (a.date < b.date ? 1 : -1));
   const latestWeight = sortedWeights[0];
-  const weekAgoWeight = [...weightLog].sort((a, b) => (a.date < b.date ? -1 : 1))[0];
   const weightChange = rollup.weightChangeKg;
 
   const submitWeight = () => {

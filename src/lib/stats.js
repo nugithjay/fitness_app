@@ -3,7 +3,6 @@ import { todayISO, addDaysISO, estimate1RM, round0, round1 } from "./core";
 export function computeStreak(foodLog) {
   let streak = 0;
   let d = todayISO();
-  // if nothing logged yet today, don't break the streak on today — start checking from yesterday
   if (!(foodLog[d] && foodLog[d].length > 0)) d = addDaysISO(d, -1);
   while (foodLog[d] && foodLog[d].length > 0) {
     streak++;
@@ -27,15 +26,13 @@ export function computeWeeklyRollup(foodLog, weightLog, workoutLog) {
   return { avgCalories, weightChangeKg, workoutsThisWeek, loggedDays };
 }
 
-// Finds the single best PR set (by estimated 1RM) achieved on the most recent workout date,
-// only if it actually beats every prior instance of that exercise.
 export function computeRecentPR(workoutLog) {
   const strength = [...workoutLog].filter((w) => w.type === "strength").sort((a, b) => (a.date < b.date ? -1 : 1));
   if (strength.length === 0) return null;
   const mostRecentDate = strength[strength.length - 1].date;
   const recentWorkouts = strength.filter((w) => w.date === mostRecentDate);
 
-  const bestBefore = new Map(); // exercise name -> best est. 1RM before mostRecentDate
+  const bestBefore = new Map();
   strength.filter((w) => w.date < mostRecentDate).forEach((w) => {
     w.exercises.forEach((ex) => {
       ex.sets.forEach((s) => {

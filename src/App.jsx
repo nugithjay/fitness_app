@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Loader2 } from "lucide-react";
 import { THEME, uid, todayISO, addDaysISO, DEFAULT_PROFILE, round0 } from "./lib/core";
-import { getUserData, setUserData } from "./lib/db";
+import { getUserData, setUserData, deleteUserData } from "./lib/db";
 import { buildExerciseLibrary } from "./lib/exerciseLibrary";
 import { supabase } from "./supabaseClient";
 import { Auth } from "./views/Auth";
@@ -17,12 +17,12 @@ import { ImportModal } from "./views/ImportModal";
 import { ImportWorkoutsModal } from "./views/ImportWorkoutsModal";
 
 export default function App() {
-  const [session, setSession] = useState(undefined); // undefined = checking, null = signed out
+  const [session, setSession] = useState(undefined);
   const [loaded, setLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState("today");
   const [selectedDate, setSelectedDate] = useState(todayISO());
   const [foodTabMeal, setFoodTabMeal] = useState(null);
-  const [foodSubview, setFoodSubview] = useState("diary"); // "diary" | "logging"
+  const [foodSubview, setFoodSubview] = useState("diary");
   const [profile, setProfile] = useState(DEFAULT_PROFILE);
   const [foodLog, setFoodLog] = useState({});
   const [weightLog, setWeightLog] = useState([]);
@@ -62,10 +62,11 @@ export default function App() {
       if (wo) setWorkoutLog(wo);
       if (ph) setPhotos(ph);
       if (tpl) setTemplates(tpl);
-      if (sess) setActiveSession(sess);
+      setActiveSession(sess || null);
       setLoaded(true);
     })();
-  }, [session]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id]);
 
   useEffect(() => { if (loaded && session) setUserData("profile", profile); }, [profile, loaded, session]);
   useEffect(() => { if (loaded && session) setUserData("food-log", foodLog); }, [foodLog, loaded, session]);
@@ -79,7 +80,12 @@ export default function App() {
 
   const addFoodEntry = (date, entry) => setFoodLog((prev) => ({ ...prev, [date]: [...(prev[date] || []), entry] }));
   const deleteFoodEntry = (date, id) => setFoodLog((prev) => ({ ...prev, [date]: (prev[date] || []).filter((e) => e.id !== id) }));
+  const updateFoodEntry = (date, id, patch) => setFoodLog((prev) => ({
+    ...prev,
+    [date]: (prev[date] || []).map((e) => (e.id === id ? { ...e, ...patch } : e)),
+  }));
   const logWeight = (date, weightKg) => setWeightLog((prev) => [...prev.filter((w) => w.date !== date), { id: uid(), date, weightKg }]);
+
   const addWorkout = (workout) => setWorkoutLog((prev) => [...prev, workout]);
   const deleteWorkout = (id) => setWorkoutLog((prev) => prev.filter((w) => w.id !== id));
   const addPhoto = (photo) => setPhotos((prev) => [...prev, photo]);
@@ -88,25 +94,14 @@ export default function App() {
   const deleteTemplate = (id) => setTemplates((prev) => prev.filter((t) => t.id !== id));
   const startSession = (session) => setActiveSession(session);
   const updateSession = (session) => setActiveSession(session);
-  const cancelSession = () => setActiveSession(null);
+  const cancelSession = () => {
+    setActiveSession(null);
+    deleteUserData("active-session");
+  };
   const finishSession = (workout) => {
     setWorkoutLog((prev) => [...prev, workout]);
     setActiveSession(null);
-  };
-
-  const mergeImportedWorkouts = (workouts) => {
-    setWorkoutLog((prev) => {
-      const isDup = (a, b) => a.date === b.date && a.name.trim().toLowerCase() === b.name.trim().toLowerCase() && a.exercises.length === b.exercises.length;
-      const toAdd = workouts.filter((w) => !prev.some((e) => isDup(e, w)));
-      return [...prev, ...toAdd];
-    });
-  };
-  const mergeImportedTemplates = (newTemplates) => {
-    setTemplates((prev) => {
-      const byName = new Map(prev.map((t) => [t.name.toLowerCase(), t]));
-      newTemplates.forEach((t) => byName.set(t.name.toLowerCase(), t));
-      return Array.from(byName.values());
-    });
+    deleteUserData("active-session");
   };
 
   const mergeImportedFood = (byDate) => {
@@ -126,6 +121,20 @@ export default function App() {
       const map = new Map(prev.map((w) => [w.date, w]));
       entries.forEach((e) => map.set(e.date, { id: uid(), date: e.date, weightKg: e.weightKg }));
       return Array.from(map.values());
+    });
+  };
+  const mergeImportedWorkouts = (workouts) => {
+    setWorkoutLog((prev) => {
+      const isDup = (a, b) => a.date === b.date && a.name.trim().toLowerCase() === b.name.trim().toLowerCase() && a.exercises.length === b.exercises.length;
+      const toAdd = workouts.filter((w) => !prev.some((e) => isDup(e, w)));
+      return [...prev, ...toAdd];
+    });
+  };
+  const mergeImportedTemplates = (newTemplates) => {
+    setTemplates((prev) => {
+      const byName = new Map(prev.map((t) => [t.name.toLowerCase(), t]));
+      newTemplates.forEach((t) => byName.set(t.name.toLowerCase(), t));
+      return Array.from(byName.values());
     });
   };
 
@@ -187,6 +196,7 @@ export default function App() {
             foodLog={foodLog}
             profile={profile}
             onDeleteFood={deleteFoodEntry}
+            onUpdateFood={updateFoodEntry}
             goToFoodLogging={goToFoodLogging}
           />
         )}
@@ -219,6 +229,8 @@ export default function App() {
           onSave={(p) => { setProfile(p); setSettingsOpen(false); }}
           onOpenImport={() => { setSettingsOpen(false); setImportOpen(true); }}
           onOpenImportWorkouts={() => { setSettingsOpen(false); setImportWorkoutsOpen(true); }}
+          hasActiveSession={!!activeSession}
+          onClearStuckSession={() => { cancelSession(); setSettingsOpen(false); }}
         />
       )}
 

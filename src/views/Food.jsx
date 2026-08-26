@@ -1,66 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Camera, X, Plus, Loader2, Search, Pencil, ChevronDown, ChevronUp, ChevronLeft } from "lucide-react";
-import { THEME, MEALS, uid, round0, round1, currentTimeHHMM, guessMealFromTime } from "../lib/core";
-import { Card, GhostButton, FieldInput, IconButton } from "../components/ui";
+import { Camera, X, Loader2, Search, ChevronDown, ChevronUp, ChevronLeft } from "lucide-react";
+import { THEME, MEALS, uid, round0, currentTimeHHMM, guessMealFromTime } from "../lib/core";
+import { Card, GhostButton } from "../components/ui";
+import { FoodEntrySheet, DirectEntryForm } from "../components/FoodEntrySheet";
 import { lookupBarcode, searchFoods } from "../lib/openFoodFacts";
 import { useBarcodeScanner } from "../hooks/useBarcodeScanner";
-
-function ProductPreview({ product, onAdd, onCancel }) {
-  const [qty, setQty] = useState(product.servingGrams ? String(product.servingGrams) : "100");
-  const scale = (parseFloat(qty) || 0) / 100;
-  const scaled = {
-    calories: round0(product.per100.calories * scale),
-    protein: round1(product.per100.protein * scale),
-    carbs: round1(product.per100.carbs * scale),
-    fat: round1(product.per100.fat * scale),
-  };
-  const chips = [50, 100, 150, 200];
-
-  return (
-    <Card style={{ marginTop: 12 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 14, color: THEME.text }}>{product.name}</div>
-          {product.brand && <div style={{ fontSize: 12, color: THEME.textMuted, marginTop: 2 }}>{product.brand}</div>}
-        </div>
-        <IconButton icon={X} onClick={onCancel} />
-      </div>
-
-      <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
-        {chips.map((g) => (
-          <GhostButton key={g} active={qty === String(g)} onClick={() => setQty(String(g))} style={{ padding: "6px 10px" }}>{g}g</GhostButton>
-        ))}
-        {product.servingGrams ? (
-          <GhostButton active={qty === String(product.servingGrams)} onClick={() => setQty(String(product.servingGrams))} style={{ padding: "6px 10px" }}>1 serving</GhostButton>
-        ) : null}
-      </div>
-
-      <div style={{ marginTop: 10 }}>
-        <FieldInput label="Amount" value={qty} onChange={setQty} type="number" inputMode="decimal" unit="g" />
-      </div>
-
-      <div style={{ display: "flex", gap: 14, marginTop: 14, fontFamily: THEME.mono, fontSize: 12, color: THEME.textMuted }}>
-        <span style={{ color: THEME.text, fontWeight: 700, fontSize: 15 }}>{scaled.calories} kcal</span>
-        <span>P {scaled.protein}g</span>
-        <span>C {scaled.carbs}g</span>
-        <span>F {scaled.fat}g</span>
-      </div>
-
-      <div style={{ marginTop: 14 }}>
-        <button
-          onClick={() => onAdd(scaled)}
-          style={{
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%",
-            background: THEME.accent, color: "#1A1408", border: "none", borderRadius: 12,
-            padding: "12px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer",
-          }}
-        >
-          <Plus size={16} /> Add to log
-        </button>
-      </div>
-    </Card>
-  );
-}
 
 function ResultRow({ name, brand, kcalLabel, tag, onClick }) {
   return (
@@ -87,9 +31,8 @@ function ResultRow({ name, brand, kcalLabel, tag, onClick }) {
 export function FoodView({ date, foodLog, initialMeal, onAddEntry, onBack }) {
   const [meal, setMeal] = useState(initialMeal || guessMealFromTime(currentTimeHHMM()));
   const [query, setQuery] = useState("");
-  const [product, setProduct] = useState(null);
+  const [product, setProduct] = useState(null); // { name, brand, per100, servingGrams } when a db/barcode item is selected
   const [manualOpen, setManualOpen] = useState(false);
-  const [manual, setManual] = useState({ name: "", calories: "", protein: "", carbs: "", fat: "" });
 
   const [barcodeLoading, setBarcodeLoading] = useState(false);
   const [barcodeError, setBarcodeError] = useState("");
@@ -121,7 +64,6 @@ export function FoodView({ date, foodLog, initialMeal, onAddEntry, onBack }) {
 
   const isBarcodeQuery = /^\d{6,}$/.test(query.trim());
 
-  // debounced database search as you type (skipped for barcode-shaped input, and for barcode lookups themselves)
   useEffect(() => {
     setProduct(null);
     setBarcodeError("");
@@ -172,28 +114,24 @@ export function FoodView({ date, foodLog, initialMeal, onAddEntry, onBack }) {
       meal,
       name: data.name,
       brand: data.brand || "",
-      calories: round0(data.calories),
-      protein: round1(data.protein),
-      carbs: round1(data.carbs),
-      fat: round1(data.fat),
+      calories: data.calories,
+      protein: data.protein,
+      carbs: data.carbs,
+      fat: data.fat,
       source: data.source || "search",
+      // keep the baseline so this entry can be rescaled later if edited
+      per100: data.per100 || null,
+      servingGrams: data.servingGrams || null,
+      qtyGrams: data.qtyGrams || null,
     });
     setProduct(null);
     setQuery("");
   };
 
-  const addYourFoodDirect = (f) => commitEntry({ ...f, source: "myfoods" });
-  const addDbResult = (p) => setProduct(p);
-
-  const submitManual = () => {
-    if (!manual.name.trim() || !manual.calories) return;
-    commitEntry({
-      name: manual.name.trim(), calories: manual.calories, protein: manual.protein,
-      carbs: manual.carbs, fat: manual.fat, source: "manual",
-    });
-    setManual({ name: "", calories: "", protein: "", carbs: "", fat: "" });
-    setManualOpen(false);
-  };
+  const addYourFoodDirect = (f) => commitEntry({
+    name: f.name, brand: f.brand, calories: f.calories, protein: f.protein, carbs: f.carbs, fat: f.fat,
+    source: "myfoods", per100: f.per100 || null, servingGrams: f.servingGrams || null, qtyGrams: f.qtyGrams || null,
+  });
 
   return (
     <div style={{ padding: 16 }}>
@@ -202,6 +140,7 @@ export function FoodView({ date, foodLog, initialMeal, onAddEntry, onBack }) {
           <ChevronLeft size={16} /> Back to diary
         </button>
       )}
+
       <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
         {MEALS.map((m) => (
           <GhostButton key={m} active={meal === m} onClick={() => setMeal(m)} style={{ flex: 1, padding: "8px 4px", fontSize: 12 }}>{m}</GhostButton>
@@ -254,7 +193,16 @@ export function FoodView({ date, foodLog, initialMeal, onAddEntry, onBack }) {
         </div>
       )}
 
-      {product && <ProductPreview product={product} onCancel={() => setProduct(null)} onAdd={(scaled) => commitEntry({ ...scaled, name: product.name, brand: product.brand, source: "database" })} />}
+      {product && (
+        <FoodEntrySheet
+          name={product.name} brand={product.brand} per100={product.per100} servingGrams={product.servingGrams}
+          onCancel={() => setProduct(null)}
+          onSubmit={(scaled, qtyGrams) => commitEntry({
+            ...scaled, name: product.name, brand: product.brand, source: isBarcodeQuery ? "barcode" : "database",
+            per100: product.per100, servingGrams: product.servingGrams, qtyGrams,
+          })}
+        />
+      )}
 
       {!product && !isBarcodeQuery && (
         <div style={{ marginTop: 14 }}>
@@ -277,7 +225,7 @@ export function FoodView({ date, foodLog, initialMeal, onAddEntry, onBack }) {
                   <div style={{ display: "flex", alignItems: "center", gap: 8, color: THEME.textMuted, fontSize: 13, padding: "6px 0" }}><Loader2 size={15} className="spin" /> Searching…</div>
                 ) : dbResults.length > 0 ? (
                   dbResults.map((p, i) => (
-                    <ResultRow key={i} name={p.name} brand={p.brand} kcalLabel={`${round0(p.per100.calories)} kcal/100g`} onClick={() => addDbResult(p)} />
+                    <ResultRow key={i} name={p.name} brand={p.brand} kcalLabel={`${round0(p.per100.calories)} kcal/100g`} onClick={() => setProduct(p)} />
                   ))
                 ) : (
                   <div style={{ fontSize: 12.5, color: THEME.textMuted }}>{dbError || "Keep typing to search."}</div>
@@ -302,31 +250,7 @@ export function FoodView({ date, foodLog, initialMeal, onAddEntry, onBack }) {
           {manualOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />} Can't find it? Add manually
         </button>
         {manualOpen && (
-          <Card style={{ marginTop: 8 }}>
-            <FieldInput label="Food name" value={manual.name} onChange={(v) => setManual({ ...manual, name: v })} placeholder="Chicken & rice bowl" />
-            <div style={{ height: 10 }} />
-            <FieldInput label="Calories" value={manual.calories} onChange={(v) => setManual({ ...manual, calories: v })} type="number" inputMode="decimal" unit="kcal" />
-            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-              <FieldInput label="Protein" value={manual.protein} onChange={(v) => setManual({ ...manual, protein: v })} type="number" inputMode="decimal" unit="g" />
-              <FieldInput label="Carbs" value={manual.carbs} onChange={(v) => setManual({ ...manual, carbs: v })} type="number" inputMode="decimal" unit="g" />
-              <FieldInput label="Fat" value={manual.fat} onChange={(v) => setManual({ ...manual, fat: v })} type="number" inputMode="decimal" unit="g" />
-            </div>
-            <div style={{ marginTop: 14 }}>
-              <button
-                onClick={submitManual}
-                disabled={!manual.name.trim() || !manual.calories}
-                style={{
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%",
-                  background: (!manual.name.trim() || !manual.calories) ? THEME.surfaceHigh : THEME.accent,
-                  color: (!manual.name.trim() || !manual.calories) ? THEME.textMuted : "#1A1408",
-                  border: "none", borderRadius: 12, padding: "12px 16px", fontSize: 14, fontWeight: 700,
-                  cursor: (!manual.name.trim() || !manual.calories) ? "default" : "pointer",
-                }}
-              >
-                <Plus size={16} /> Add to log
-              </button>
-            </div>
-          </Card>
+          <DirectEntryForm onSubmit={(vals) => commitEntry({ ...vals, source: "manual" })} />
         )}
       </div>
     </div>

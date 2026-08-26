@@ -5,7 +5,7 @@ import { PrimaryButton, GhostButton, FieldInput } from "../components/ui";
 import { supabase } from "../supabaseClient";
 
 export function Auth() {
-  const [mode, setMode] = useState("signin"); // signin | signup
+  const [mode, setMode] = useState("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);

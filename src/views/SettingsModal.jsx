@@ -1,10 +1,10 @@
 import React, { useState } from "react";
-import { X, Check, Upload, LogOut, Dumbbell } from "lucide-react";
+import { X, Check, Upload, LogOut, Dumbbell, AlertTriangle } from "lucide-react";
 import { THEME, round0 } from "../lib/core";
 import { Card, SectionLabel, GhostButton, PrimaryButton, FieldInput, IconButton } from "../components/ui";
 import { supabase } from "../supabaseClient";
 
-export function SettingsModal({ profile, onSave, onClose, onOpenImport, onOpenImportWorkouts }) {
+export function SettingsModal({ profile, onSave, onClose, onOpenImport, onOpenImportWorkouts, hasActiveSession, onClearStuckSession }) {
   const [local, setLocal] = useState(profile);
   const computedCalories = round0(Number(local.goalProtein) * 4 + Number(local.goalCarbs) * 4 + Number(local.goalFat) * 9);
 
@@ -66,6 +66,15 @@ export function SettingsModal({ profile, onSave, onClose, onOpenImport, onOpenIm
           <GhostButton icon={Upload} onClick={onOpenImport} style={{ width: "100%", marginBottom: 8 }}>Import from MyFitnessPal</GhostButton>
           <GhostButton icon={Dumbbell} onClick={onOpenImportWorkouts} style={{ width: "100%" }}>Import from Strong</GhostButton>
         </div>
+
+        {hasActiveSession && (
+          <div style={{ marginTop: 18, paddingTop: 18, borderTop: `1px solid ${THEME.border}` }}>
+            <SectionLabel>Troubleshooting</SectionLabel>
+            <GhostButton icon={AlertTriangle} onClick={onClearStuckSession} style={{ width: "100%", color: THEME.danger, borderColor: THEME.danger }}>
+              Clear stuck workout session
+            </GhostButton>
+          </div>
+        )}
 
         <div style={{ marginTop: 18 }}>
           <GhostButton icon={LogOut} onClick={() => supabase.auth.signOut()} style={{ width: "100%" }}>Sign out</GhostButton>

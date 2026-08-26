@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { X, Check, Plus, Trash2, ChevronLeft, Search } from "lucide-react";
+import { X, Check, Plus, Trash2, ChevronLeft } from "lucide-react";
 import { THEME, uid, round1, toKg, displayWeight } from "../lib/core";
 import { Card, GhostButton, FieldInput, IconButton } from "../components/ui";
 import { useRestTimer } from "../hooks/useRestTimer";
@@ -62,7 +62,6 @@ function ExercisePicker({ library, onPick, onClose }) {
   );
 }
 
-// A set row that reveals a delete action on left-swipe — no library, just touch tracking.
 function SwipeSetRow({ children, onDelete }) {
   const [dx, setDx] = useState(0);
   const dragging = useRef(false);

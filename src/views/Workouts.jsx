@@ -5,8 +5,6 @@ import { Card, SectionLabel, GhostButton, PrimaryButton, FieldInput, IconButton,
 import { WorkoutSession } from "./WorkoutSession";
 import { ExerciseDetail } from "../components/ExerciseDetail";
 
-/* ---- manual / backfill form (for logging a session after the fact) ---- */
-
 const blankExercise = () => ({ id: uid(), name: "", sets: [{ id: uid(), reps: "", weight: "" }] });
 const blankWorkout = (date) => ({
   type: "strength", date, name: "", exercises: [blankExercise()],

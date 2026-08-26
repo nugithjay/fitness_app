@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { X, Trophy, TrendingUp } from "lucide-react";
+import { X, TrendingUp } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { THEME, round1, displayWeight, shortLabel } from "../lib/core";
 import { getExerciseHistory, getExerciseRecords } from "../lib/exerciseLibrary";

@@ -1,8 +1,5 @@
 import { supabase } from "../supabaseClient";
 
-// Mirrors the original app's get/set-by-key storage model, backed by a real
-// per-user table with row-level security instead of browser-local storage.
-
 export async function getUserData(key) {
   const { data: userData } = await supabase.auth.getUser();
   const user = userData?.user;
@@ -18,6 +15,14 @@ export async function getUserData(key) {
     return null;
   }
   return data ? data.value : null;
+}
+
+export async function deleteUserData(key) {
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData?.user;
+  if (!user) return;
+  const { error } = await supabase.from("user_data").delete().eq("user_id", user.id).eq("key", key);
+  if (error) console.error("deleteUserData failed", key, error);
 }
 
 export async function setUserData(key, value) {
@@ -39,9 +44,6 @@ export async function setUserData(key, value) {
     );
   if (error) console.error("setUserData failed", key, error);
 }
-
-// ---- Progress photos: file bytes live in Supabase Storage, a small index
-// (id/date/path) is kept in user_data under the 'progress-photos' key.
 
 function resizeImageToBlob(file, maxDim = 1000, quality = 0.82) {
   return new Promise((resolve, reject) => {
